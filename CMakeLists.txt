@@ -32,6 +32,7 @@ cmake_minimum_required(VERSION 3.20)
 project(vix_net VERSION 0.1.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
+include(FetchContent)
 
 # Global settings
 set(CMAKE_CXX_STANDARD 20)
@@ -76,7 +77,7 @@ if (NET_SOURCES)
     message(STATUS "[net] vix_warnings detected (from umbrella)")
     target_link_libraries(vix_net PUBLIC vix_warnings)
     if (VIX_ENABLE_SANITIZERS AND TARGET vix_sanitizers)
-      target_link_libraries(vix_net INTERFACE vix_sanitizers)
+      target_link_libraries(vix_net PUBLIC vix_sanitizers)
     endif()
   else()
     message(STATUS "[net] vix_warnings not found (building net standalone)")
