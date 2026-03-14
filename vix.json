@@ -1,0 +1,25 @@
+{
+  "name": "net",
+  "namespace": "vix",
+  "version": "0.1.0",
+  "type": "header-and-source",
+  "include": "include",
+  "src": "src",
+  "license": "MIT",
+  "description": "Networking utilities for Vix.cpp: network probing and diagnostics.",
+  "keywords": [
+    "cpp",
+    "vix",
+    "network",
+    "probe",
+    "diagnostics",
+    "utilities"
+  ],
+  "repository": "https://github.com/vixcpp/net",
+  "authors": [
+    {
+      "name": "Gaspard Kirira",
+      "github": "Gaspardkirira"
+    }
+  ]
+}
