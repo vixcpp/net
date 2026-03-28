@@ -147,9 +147,13 @@ endif()
 option(VIX_NET_BUILD_TESTS "Build net module tests" OFF)
 
 if (VIX_NET_BUILD_TESTS)
-  include(CTest)
-  enable_testing()
-  add_subdirectory(tests)
+  if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+    include(CTest)
+    enable_testing()
+    add_subdirectory(tests)
+  else()
+    message(WARNING "[net/tests] VIX_NET_BUILD_TESTS=ON but tests/CMakeLists.txt not found, skipping.")
+  endif()
 endif()
 
 # Summary
