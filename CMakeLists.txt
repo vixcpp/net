@@ -1,4 +1,4 @@
-#  @file CMakeLists.cpp
+#  @file CMakeLists.txt
 #  @author Gaspard Kirira
 #
 #  Copyright 2025, Gaspard Kirira.  All rights reserved.
@@ -24,7 +24,7 @@
 #   - VIX_ENABLE_SANITIZERS : Inherit sanitizers from the parent project
 #
 # Installation/Export:
-#   Installs into the umbrella export-set `VixTargets`.
+#   Installs as a standalone package export set `vix_netTargets`.
 # ====================================================================
 
 cmake_minimum_required(VERSION 3.20)
@@ -60,13 +60,13 @@ if (NET_SOURCES)
 
   if (TARGET vix_warnings)
     message(STATUS "[net] vix_warnings detected (from umbrella)")
-    target_link_libraries(vix_net PUBLIC vix_warnings)
+    target_link_libraries(vix_net PRIVATE "$<BUILD_INTERFACE:vix_warnings>")
   else()
     message(STATUS "[net] vix_warnings not found (building net standalone)")
   endif()
 
   if (VIX_ENABLE_SANITIZERS AND TARGET vix_sanitizers)
-    target_link_libraries(vix_net PUBLIC vix_sanitizers)
+    target_link_libraries(vix_net PRIVATE "$<BUILD_INTERFACE:vix_sanitizers>")
   endif()
 
   set_target_properties(vix_net PROPERTIES
@@ -77,7 +77,7 @@ if (NET_SOURCES)
   )
 
   install(TARGETS vix_net
-    EXPORT VixTargets
+    EXPORT vix_netTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -100,19 +100,22 @@ else()
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-  if (VIX_ENABLE_SANITIZERS AND TARGET vix_sanitizers)
-    target_link_libraries(vix_net INTERFACE vix_sanitizers)
-  endif()
+  set_target_properties(vix_net PROPERTIES
+    EXPORT_NAME net
+  )
 
   install(TARGETS vix_net
-    EXPORT VixTargets
+    EXPORT vix_netTargets
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 endif()
 
 # Install headers
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h")
+install(
+  DIRECTORY include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
+)
 
 # Package config
 configure_package_config_file(
@@ -133,8 +136,8 @@ install(FILES
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
 )
 
-install(EXPORT VixTargets
-  FILE VixTargets.cmake
+install(EXPORT vix_netTargets
+  FILE vix_netTargets.cmake
   NAMESPACE vix::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
 )
