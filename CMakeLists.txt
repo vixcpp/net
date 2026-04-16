@@ -1,3 +1,4 @@
+# ====================================================================
 #  @file CMakeLists.txt
 #  @author Gaspard Kirira
 #
@@ -6,8 +7,9 @@
 #  Use of this source code is governed by a MIT license
 #  that can be found in the License file.
 #
-#  Vix.cpp
-# NET MODULE
+# ====================================================================
+# Vix.cpp - Net Module
+# ====================================================================
 # Purpose:
 #   Low-level networking primitives for Vix (connectivity probing,
 #   reachability checks, lightweight network utilities). Builds as
@@ -20,11 +22,9 @@
 # Public Dependencies:
 #   - None
 #
-# Options:
-#   - VIX_ENABLE_SANITIZERS : Inherit sanitizers from the parent project
-#
 # Installation/Export:
-#   Installs as a standalone package export set `vix_netTargets`.
+#   - Umbrella build exports into: VixTargets
+#   - Standalone build exports into: vix_netTargets
 # ====================================================================
 
 cmake_minimum_required(VERSION 3.20)
@@ -33,13 +33,28 @@ project(vix_net VERSION 0.1.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+# --------------------------------------------------------------------
 # Global settings
+# --------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# --------------------------------------------------------------------
+# Export set selection  ✅ CRUCIAL
+# --------------------------------------------------------------------
+if (DEFINED VIX_UMBRELLA_BUILD AND VIX_UMBRELLA_BUILD)
+  set(VIX_NET_EXPORT_SET VixTargets)
+else()
+  set(VIX_NET_EXPORT_SET vix_netTargets)
+endif()
+
+# --------------------------------------------------------------------
 # Sources discovery
-file(GLOB_RECURSE NET_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+# --------------------------------------------------------------------
+file(GLOB_RECURSE NET_SOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
 
 # --------------------------------------------------------------------
 # Library mode
@@ -58,15 +73,13 @@ if (NET_SOURCES)
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
+  # Build-only helpers (ne doivent pas être exportés)
   if (TARGET vix_warnings)
-    message(STATUS "[net] vix_warnings detected (from umbrella)")
-    target_link_libraries(vix_net PRIVATE "$<BUILD_INTERFACE:vix_warnings>")
-  else()
-    message(STATUS "[net] vix_warnings not found (building net standalone)")
+    target_link_libraries(vix_net PRIVATE vix_warnings)
   endif()
 
   if (VIX_ENABLE_SANITIZERS AND TARGET vix_sanitizers)
-    target_link_libraries(vix_net PRIVATE "$<BUILD_INTERFACE:vix_sanitizers>")
+    target_link_libraries(vix_net PRIVATE vix_sanitizers)
   endif()
 
   set_target_properties(vix_net PROPERTIES
@@ -77,7 +90,7 @@ if (NET_SOURCES)
   )
 
   install(TARGETS vix_net
-    EXPORT vix_netTargets
+    EXPORT ${VIX_NET_EXPORT_SET}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -105,44 +118,57 @@ else()
   )
 
   install(TARGETS vix_net
-    EXPORT vix_netTargets
+    EXPORT ${VIX_NET_EXPORT_SET}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 endif()
 
-# Install headers
-install(
-  DIRECTORY include/
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
-)
+# --------------------------------------------------------------------
+# Install headers (standalone only)
+# --------------------------------------------------------------------
+if (NOT (DEFINED VIX_UMBRELLA_BUILD AND VIX_UMBRELLA_BUILD))
+  install(
+    DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
+  )
+endif()
 
-# Package config
-configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vix_netConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfig.cmake"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
-)
+# --------------------------------------------------------------------
+# Standalone package config/export
+# IMPORTANT: uniquement hors umbrella
+# --------------------------------------------------------------------
+if (NOT (DEFINED VIX_UMBRELLA_BUILD AND VIX_UMBRELLA_BUILD))
 
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
+  configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vix_netConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
+  )
 
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfigVersion.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
-)
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
 
-install(EXPORT vix_netTargets
-  FILE vix_netTargets.cmake
-  NAMESPACE vix::
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
-)
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/vix_netConfigVersion.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
+  )
 
+  install(EXPORT vix_netTargets
+    FILE vix_netTargets.cmake
+    NAMESPACE vix::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vix_net"
+  )
+
+endif()
+
+# --------------------------------------------------------------------
 # Tests
+# --------------------------------------------------------------------
 option(VIX_NET_BUILD_TESTS "Build net module tests" OFF)
 
 if (VIX_NET_BUILD_TESTS)
@@ -150,12 +176,12 @@ if (VIX_NET_BUILD_TESTS)
     include(CTest)
     enable_testing()
     add_subdirectory(tests)
-  else()
-    message(WARNING "[net/tests] VIX_NET_BUILD_TESTS=ON but tests/CMakeLists.txt not found, skipping.")
   endif()
 endif()
 
+# --------------------------------------------------------------------
 # Summary
+# --------------------------------------------------------------------
 message(STATUS "------------------------------------------------------")
 message(STATUS "vix::net configured (${PROJECT_VERSION})")
 if (NET_SOURCES)
@@ -163,7 +189,8 @@ if (NET_SOURCES)
 else()
   message(STATUS "Mode: HEADER-ONLY / no sources")
 endif()
-message(STATUS "Include dir: ${CMAKE_CURRENT_SOURCE_DIR}/include (for <vix/...>)")
-message(STATUS "Sanitizers (inherited): ${VIX_ENABLE_SANITIZERS}")
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Export set:       ${VIX_NET_EXPORT_SET}")
+message(STATUS "Include dir:      ${CMAKE_CURRENT_SOURCE_DIR}/include (for <vix/...>)")
+message(STATUS "Sanitizers:       ${VIX_ENABLE_SANITIZERS}")
+message(STATUS "Build type:       ${CMAKE_BUILD_TYPE}")
 message(STATUS "------------------------------------------------------")
