@@ -1,33 +1,37 @@
-# vix::net
+# Vix.cpp Net Module
 
-Low-level networking primitives for Vix.cpp.
+Low-level networking utilities for Vix.cpp.
 
-`vix::net` provides small, reusable network utilities used by Vix modules that need connectivity checks or outbound HTTP communication without depending directly on platform details or external process logic.
+The Net module provides small, reusable networking primitives used by Vix modules that need connectivity checks or outbound HTTP communication.
 
-## Features
+## Documentation
 
-- Connectivity probing with cached online/offline state
+Full documentation will be available here:
+
+https://docs.vixcpp.com/modules/net/
+
+API reference:
+
+https://docs.vixcpp.com/modules/net/api-reference
+
+## What Net provides
+
+- Connectivity probing
+- Cached online/offline state
 - Outbound HTTP client abstraction
 - Curl-backed HTTP client backend
 - Structured error handling through `vix::error`
-- Process-backed implementation through `vix::process`
+- Process-backed execution through `vix::process`
 - Clean separation between server-side HTTP and client-side HTTP
 
-## HTTP client
-
-The HTTP client layer lives under:
+## Public headers
 
 ```cpp
+#include <vix/net/NetworkProbe.hpp>
 #include <vix/net/http/http.hpp>
 ```
 
-Namespace:
-
-```
-vix::net::http
-```
-
-### Basic usage
+## HTTP client example
 
 ```cpp
 #include <iostream>
@@ -37,7 +41,6 @@ vix::net::http
 int main()
 {
   vix::net::http::CurlClient client;
-
   vix::net::http::ClientRequest request;
 
   request
@@ -62,7 +65,7 @@ int main()
 }
 ```
 
-### POST JSON
+## POST JSON example
 
 ```cpp
 #include <iostream>
@@ -72,7 +75,6 @@ int main()
 int main()
 {
   vix::net::http::CurlClient client;
-
   vix::net::http::ClientRequest request;
 
   request
@@ -104,9 +106,7 @@ int main()
 }
 ```
 
-## NetworkProbe
-
-`NetworkProbe` provides a lightweight connectivity probe with caching and rate limiting.
+## Network probe example
 
 ```cpp
 #include <iostream>
@@ -130,39 +130,34 @@ int main()
 }
 ```
 
-## Design
+## Architecture
 
-`vix::net` is responsible for outbound network utilities.
-
-```
+```text
 vix::net
-  connectivity probing
-  outbound HTTP client abstraction
-  HTTP client backends
+  -> connectivity probing
+  -> outbound HTTP client abstraction
+  -> HTTP client backends
 ```
 
-Server-side HTTP remains in `vix::http`, `vix::server`, `vix::router`, and `vix::session`.
+Server-side HTTP stays in Core:
 
-```
+```text
 vix::http
-  server request
-  server response
-  request handler
-  response wrapper
+  -> server request and response
 
 vix::server
-  HTTP server
+  -> HTTP server
 
 vix::router
-  route matching and dispatch
+  -> route matching and dispatch
 
 vix::session
-  connection/session transport
+  -> connection and transport lifecycle
 ```
 
-This keeps the responsibilities clear:
+This keeps responsibilities clear:
 
-```
+```text
 core/http = server-side HTTP framework
 net/http  = outbound HTTP client
 process   = external process execution
@@ -170,38 +165,80 @@ process   = external process execution
 
 ## Dependencies
 
-Public dependencies:
-
 - `vix::error`
 - `vix::process`
 
-`CurlClient` uses `vix::process` internally to execute the curl command-line tool. This keeps curl hidden behind the `vix::net::http::Client` abstraction.
+`CurlClient` uses `vix::process` internally to execute the `curl` command-line tool behind the `vix::net::http::Client` abstraction.
 
-Future backends can be added without changing users of the client interface:
+Future backends can be added without changing user code:
 
-```
+```text
 CurlClient
 NativeClient
 AsioClient
 TlsClient
 ```
 
-## CMake
+## Build
 
-### Standalone
+Contributors should use the Vix CLI to build this module.
+
+Vix wraps the C++ build workflow with project detection, presets, Ninja builds, clean logs, caching, and focused diagnostics. This keeps the contributor workflow consistent and helps avoid hidden C++ build issues.
+
+### Build the project
 
 ```bash
+git clone https://github.com/vixcpp/vix.git
+cd vix
 vix build
 ```
 
-### With tests
+### Build with Net tests
 
 ```bash
 vix build -- -DVIX_NET_BUILD_TESTS=ON
+```
+
+### Build all targets
+
+Use this before running the full test suite, install workflows, or release checks:
+
+```bash
+vix build --build-target all
+```
+
+### Clean rebuild
+
+Use this when the local CMake cache or build directory may be stale:
+
+```bash
+vix build --clean
+```
+
+### Release build
+
+```bash
+vix build --preset release
+```
+
+## Tests
+
+Build all targets first, then run tests:
+
+```bash
+vix build --build-target all
 vix tests
 ```
 
-### Consumer usage
+Before opening a pull request, use:
+
+```bash
+vix fmt --check
+vix build --build-target all
+vix tests
+```
+
+## CMake consumer usage
 
 ```cmake
 find_package(vix_net CONFIG REQUIRED)
@@ -212,12 +249,25 @@ target_link_libraries(my_app PRIVATE vix::net)
 ## Build options
 
 | Option | Purpose |
-|--------|---------|
-| `VIX_NET_BUILD_TESTS` | Build net module tests |
+| --- | --- |
+| `VIX_NET_BUILD_TESTS` | Build Net module tests |
 | `VIX_NET_FETCH_ERROR` | Auto-fetch `vix::error` if missing |
 | `VIX_NET_FETCH_PROCESS` | Auto-fetch `vix::process` if missing |
 | `VIX_NET_FETCH_TESTS` | Auto-fetch `vix::tests` if missing |
 
+## Useful links
+
+- Net documentation: https://docs.vixcpp.com/modules/net/
+- Net API reference: https://docs.vixcpp.com/modules/net/api-reference
+- Build command: https://docs.vixcpp.com/cli/build
+- Tests command: https://docs.vixcpp.com/cli/tests
+- Documentation: https://docs.vixcpp.com/
+- Engineering notes: https://blog.vixcpp.com/
+- Registry: https://registry.vixcpp.com/
+- GitHub: https://github.com/vixcpp/vix
+
 ## License
 
-MIT
+MIT License.
+
+See [`LICENSE`](../../LICENSE) for details.
