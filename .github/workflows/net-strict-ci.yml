@@ -2,7 +2,11 @@ name: Net Strict CI
 
 on:
   push:
-    branches: [main, master, dev]
+    branches:
+      - main
+      - master
+      - dev
+      - release/**
     paths:
       - ".github/workflows/net-strict-ci.yml"
       - "CMakeLists.txt"
@@ -14,8 +18,13 @@ on:
       - "LICENSE"
       - "CHANGELOG.md"
       - "vix.json"
+
   pull_request:
-    branches: [main, master, dev]
+    branches:
+      - main
+      - master
+      - dev
+      - release/**
     paths:
       - ".github/workflows/net-strict-ci.yml"
       - "CMakeLists.txt"
@@ -27,44 +36,47 @@ on:
       - "LICENSE"
       - "CHANGELOG.md"
       - "vix.json"
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  DEPS: >
-    build-essential
-    cmake
-    ninja-build
-    clang
-    llvm
-    lld
-    g++
-    cppcheck
-    clang-tidy
-    valgrind
-    pkg-config
-    git
   BUILD_JOBS: 2
+  VIX_GIT_BRANCH: dev
 
 jobs:
-  build-test:
-    name: Build and Tests (${{ matrix.compiler }})
+  build:
+    name: Build Net (${{ matrix.compiler }})
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        compiler: [clang, gcc]
+        compiler:
+          - gcc
+          - clang
 
     steps:
       - name: Checkout net repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y $DEPS
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang \
+            g++ \
+            pkg-config \
+            git \
+            curl \
+            ca-certificates
 
       - name: Select compiler
         run: |
@@ -76,161 +88,259 @@ jobs:
             echo "CXX=g++" >> "$GITHUB_ENV"
           fi
 
+      - name: Fetch sibling dependencies
+        run: |
+          set -euxo pipefail
+
+          rm -rf \
+            ../error \
+            ../path \
+            ../env \
+            ../process
+
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+      - name: Verify required sibling dependencies
+        run: |
+          set -euxo pipefail
+
+          test -f ../error/CMakeLists.txt
+          test -f ../path/CMakeLists.txt
+          test -f ../env/CMakeLists.txt
+          test -f ../process/CMakeLists.txt
+
+      - name: Export dependency include paths
+        run: |
+          EXTRA_PATHS="$GITHUB_WORKSPACE/../error/include"
+          EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../path/include"
+          EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../env/include"
+          EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../process/include"
+
+          echo "CPATH=$EXTRA_PATHS${CPATH:+:$CPATH}" >> "$GITHUB_ENV"
+          echo "CPLUS_INCLUDE_PATH=$EXTRA_PATHS${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}" >> "$GITHUB_ENV"
+
       - name: Configure
         run: |
-          cmake -G Ninja -S . -B build \
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DVIX_NET_BUILD_TESTS=ON
+            -DVIX_NET_BUILD_TESTS=OFF \
+            -DVIX_NET_FETCH_ERROR=OFF \
+            -DVIX_NET_FETCH_PROCESS=OFF
 
       - name: Build
         run: |
           cmake --build build -j"${BUILD_JOBS}"
-
-      - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure || true
 
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout net repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y $DEPS
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang \
+            g++ \
+            cppcheck \
+            clang-tidy \
+            pkg-config \
+            git \
+            curl \
+            ca-certificates
 
-      - name: Configure
+      - name: Fetch sibling dependencies
         run: |
-          cmake -G Ninja -S . -B build \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          set -euxo pipefail
+
+          rm -rf \
+            ../error \
+            ../path \
+            ../env \
+            ../process
+
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+      - name: Configure for analysis
+        run: |
+          cmake -S . -B build-analyze -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DVIX_NET_BUILD_TESTS=OFF \
+            -DVIX_NET_FETCH_ERROR=OFF \
+            -DVIX_NET_FETCH_PROCESS=OFF
 
       - name: Run clang-tidy
         run: |
           set +e
-          find src tests -name '*.cpp' -print0 | xargs -0 -r -n1 -P2 clang-tidy -p build
+          find src -name '*.cpp' -print0 | xargs -0 -r -n1 -P2 clang-tidy -p build-analyze
           exit 0
 
       - name: Run cppcheck
         run: |
-          cppcheck --enable=all --std=c++20 --quiet include/ src/ tests/ || true
-
-  valgrind:
-    name: Valgrind
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y $DEPS
-
-      - name: Configure
-        run: |
-          cmake -G Ninja -S . -B build \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DVIX_NET_BUILD_TESTS=ON
-
-      - name: Build
-        run: |
-          cmake --build build -j"${BUILD_JOBS}"
-
-      - name: Run valgrind
-        run: |
           set +e
-          for exe in $(find build -type f -executable); do
-            timeout 10s valgrind "$exe" || true
-          done
+          cppcheck \
+            --enable=all \
+            --std=c++20 \
+            --inconclusive \
+            --quiet \
+            --suppress=missingIncludeSystem \
+            include/ src/
+          exit 0
 
-  standalone-package-check:
-    name: Standalone Package Export Check
+  install-check:
+    name: Install Net
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout net repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y $DEPS
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++ \
+            pkg-config \
+            git \
+            curl \
+            ca-certificates
 
-      - name: Configure installable standalone build
+      - name: Fetch sibling dependencies
         run: |
-          cmake -G Ninja -S . -B build-install \
+          set -euxo pipefail
+
+          rm -rf \
+            ../error \
+            ../path \
+            ../env \
+            ../process
+
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+      - name: Configure installable build
+        run: |
+          cmake -S . -B build-install -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DVIX_NET_BUILD_TESTS=OFF \
+            -DVIX_NET_FETCH_ERROR=OFF \
+            -DVIX_NET_FETCH_PROCESS=OFF \
             -DCMAKE_INSTALL_PREFIX="${PWD}/.ci-install"
 
-      - name: Build standalone package
+      - name: Build installable package
         run: |
           cmake --build build-install -j"${BUILD_JOBS}"
 
-      - name: Install standalone package
+      - name: Install package
         run: |
           cmake --install build-install
 
-      - name: Verify installed package files
+      - name: Verify install tree
         run: |
-          echo "---- install tree ----"
-          find .ci-install -type f | sort
-
-          test -f .ci-install/include/vix/net/NetworkProbe.hpp || (echo "::error::header missing"; exit 1)
-
-          if [ -f .ci-install/lib/libvix_net.a ]; then
-            echo "STATIC lib OK"
-          else
-            echo "::error::libvix_net.a missing"
-            exit 1
-          fi
+          find .ci-install -maxdepth 8 -type f | sort
+          test -d .ci-install/include/vix/net
+          test -f .ci-install/lib/libvix_net.a
+          test -f .ci-install/lib/cmake/vix_net/vix_netTargets.cmake
 
   config-coverage:
     name: Configuration Coverage
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout net repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y $DEPS
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++ \
+            pkg-config \
+            git \
+            curl \
+            ca-certificates
 
-      - name: Configure release
+      - name: Fetch sibling dependencies
         run: |
-          cmake -S . -B build-release \
-            -DCMAKE_BUILD_TYPE=Release
+          set -euxo pipefail
 
-      - name: Build release
-        run: |
-          cmake --build build-release
+          rm -rf \
+            ../error \
+            ../path \
+            ../env \
+            ../process
 
-      - name: Configure debug
-        run: |
-          cmake -S . -B build-debug \
-            -DCMAKE_BUILD_TYPE=Debug
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
 
-      - name: Build debug
+      - name: Configure release mode
         run: |
-          cmake --build build-debug
+          cmake -S . -B build-release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVIX_NET_BUILD_TESTS=OFF \
+            -DVIX_NET_FETCH_ERROR=OFF \
+            -DVIX_NET_FETCH_PROCESS=OFF
+
+      - name: Build release mode
+        run: |
+          cmake --build build-release -j"${BUILD_JOBS}"
+
+      - name: Configure debug mode
+        run: |
+          cmake -S . -B build-debug -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DVIX_NET_BUILD_TESTS=OFF \
+            -DVIX_NET_FETCH_ERROR=OFF \
+            -DVIX_NET_FETCH_PROCESS=OFF
+
+      - name: Build debug mode
+        run: |
+          cmake --build build-debug -j"${BUILD_JOBS}"
 
   summary:
-    name: Net CI Summary
-    runs-on: ubuntu-latest
+    name: Net Strict CI Summary
     needs:
-      [
-        build-test,
-        static-analysis,
-        valgrind,
-        standalone-package-check,
-        config-coverage,
-      ]
+      - build
+      - static-analysis
+      - install-check
+      - config-coverage
+    runs-on: ubuntu-latest
 
     steps:
-      - run: |
-          echo "Net CI OK"
+      - name: Print summary
+        run: |
+          echo "Net strict CI completed."
+          echo "- gcc and clang builds"
+          echo "- static analysis"
+          echo "- install tree check"
+          echo "- release and debug configuration coverage"

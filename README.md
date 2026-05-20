@@ -13,24 +13,6 @@ Low-level networking primitives for Vix.cpp.
 - Process-backed implementation through `vix::process`
 - Clean separation between server-side HTTP and client-side HTTP
 
-## Modules
-
-```txt
-include/vix/net/
-  NetworkProbe.hpp
-  net.hpp
-
-include/vix/net/http/
-  Method.hpp
-  HeaderMap.hpp
-  ClientRequest.hpp
-  ClientResponse.hpp
-  ClientError.hpp
-  Client.hpp
-  CurlClient.hpp
-  http.hpp
-```
-
 ## HTTP client
 
 The HTTP client layer lives under:
