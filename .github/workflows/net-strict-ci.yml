@@ -76,7 +76,8 @@ jobs:
             pkg-config \
             git \
             curl \
-            ca-certificates
+            ca-certificates \
+            libasio-dev
 
       - name: Select compiler
         run: |
@@ -96,12 +97,27 @@ jobs:
             ../error \
             ../path \
             ../env \
+            ../async \
             ../process
 
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" --recurse-submodules https://github.com/vixcpp/async.git ../async
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+          git -C ../async submodule update --init --recursive --depth 1 || true
+
+      - name: Prepare Asio for async
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ../async/third_party/asio
+          rm -rf ../async/third_party/asio/include
+          mkdir -p ../async/third_party/asio/include
+          cp -r /usr/include/asio* ../async/third_party/asio/include/ || true
+
+          test -f ../async/third_party/asio/include/asio.hpp
 
       - name: Verify required sibling dependencies
         run: |
@@ -110,13 +126,16 @@ jobs:
           test -f ../error/CMakeLists.txt
           test -f ../path/CMakeLists.txt
           test -f ../env/CMakeLists.txt
+          test -f ../async/CMakeLists.txt
           test -f ../process/CMakeLists.txt
+          test -f ../async/third_party/asio/include/asio.hpp
 
       - name: Export dependency include paths
         run: |
           EXTRA_PATHS="$GITHUB_WORKSPACE/../error/include"
           EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../path/include"
           EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../env/include"
+          EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../async/include"
           EXTRA_PATHS="$EXTRA_PATHS:$GITHUB_WORKSPACE/../process/include"
 
           echo "CPATH=$EXTRA_PATHS${CPATH:+:$CPATH}" >> "$GITHUB_ENV"
@@ -159,7 +178,8 @@ jobs:
             pkg-config \
             git \
             curl \
-            ca-certificates
+            ca-certificates \
+            libasio-dev
 
       - name: Fetch sibling dependencies
         run: |
@@ -169,12 +189,27 @@ jobs:
             ../error \
             ../path \
             ../env \
+            ../async \
             ../process
 
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" --recurse-submodules https://github.com/vixcpp/async.git ../async
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+          git -C ../async submodule update --init --recursive --depth 1 || true
+
+      - name: Prepare Asio for async
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ../async/third_party/asio
+          rm -rf ../async/third_party/asio/include
+          mkdir -p ../async/third_party/asio/include
+          cp -r /usr/include/asio* ../async/third_party/asio/include/ || true
+
+          test -f ../async/third_party/asio/include/asio.hpp
 
       - name: Configure for analysis
         run: |
@@ -224,7 +259,8 @@ jobs:
             pkg-config \
             git \
             curl \
-            ca-certificates
+            ca-certificates \
+            libasio-dev
 
       - name: Fetch sibling dependencies
         run: |
@@ -234,12 +270,27 @@ jobs:
             ../error \
             ../path \
             ../env \
+            ../async \
             ../process
 
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" --recurse-submodules https://github.com/vixcpp/async.git ../async
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+          git -C ../async submodule update --init --recursive --depth 1 || true
+
+      - name: Prepare Asio for async
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ../async/third_party/asio
+          rm -rf ../async/third_party/asio/include
+          mkdir -p ../async/third_party/asio/include
+          cp -r /usr/include/asio* ../async/third_party/asio/include/ || true
+
+          test -f ../async/third_party/asio/include/asio.hpp
 
       - name: Configure installable build
         run: |
@@ -286,7 +337,8 @@ jobs:
             pkg-config \
             git \
             curl \
-            ca-certificates
+            ca-certificates \
+            libasio-dev
 
       - name: Fetch sibling dependencies
         run: |
@@ -296,12 +348,27 @@ jobs:
             ../error \
             ../path \
             ../env \
+            ../async \
             ../process
 
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/error.git ../error
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/path.git ../path
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/env.git ../env
+          git clone --depth 1 --branch "${VIX_GIT_BRANCH}" --recurse-submodules https://github.com/vixcpp/async.git ../async
           git clone --depth 1 --branch "${VIX_GIT_BRANCH}" https://github.com/vixcpp/process.git ../process
+
+          git -C ../async submodule update --init --recursive --depth 1 || true
+
+      - name: Prepare Asio for async
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ../async/third_party/asio
+          rm -rf ../async/third_party/asio/include
+          mkdir -p ../async/third_party/asio/include
+          cp -r /usr/include/asio* ../async/third_party/asio/include/ || true
+
+          test -f ../async/third_party/asio/include/asio.hpp
 
       - name: Configure release mode
         run: |
@@ -341,6 +408,7 @@ jobs:
         run: |
           echo "Net strict CI completed."
           echo "- gcc and clang builds"
+          echo "- process dependency with async"
           echo "- static analysis"
           echo "- install tree check"
           echo "- release and debug configuration coverage"
